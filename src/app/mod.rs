@@ -9,9 +9,11 @@ use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent, MouseCurso
 #[allow(unused_imports)]
 use piston::window::WindowSettings;
 
+use crate::app::particle_system::Grid;
 use crate::constants;
 
 mod particle_system;
+pub mod particle_behaviour;
 
 const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
@@ -68,10 +70,10 @@ impl App {
             );
 
             // sim -> grid
-            let mouse_grid_pos = self.particles.grid.sim_pos_to_grid_pos(mouse_sim_pos);
+            let mouse_grid_pos = Grid::sim_pos_to_grid_pos(mouse_sim_pos);
 
             // grid -> sim
-            let mouse_sim_pos = self.particles.grid.grid_pos_to_sim_pos(mouse_grid_pos);
+            let mouse_sim_pos = Grid::grid_pos_to_sim_pos(mouse_grid_pos);
 
             // sim -> screen
             let mouse_screen_pos = App::sim_pos_to_screen_pos(mouse_sim_pos, (window_width, window_height));
@@ -130,14 +132,16 @@ impl App {
 
     /// Updates the state of the App
     pub fn update(&mut self, args: &UpdateArgs) {
+        // update particles
+        self.particles.update();
     }
 
     /// Converts a position in the simulation to a position on the screen
     fn sim_pos_to_screen_pos(pos: (f64, f64), screen_size: (f64, f64)) -> (f64, f64) {
-        let x = (pos.0 / constants::X_SPAN) * screen_size.0 + 5f64;
-        let y = (pos.1 / constants::Y_SPAN) * screen_size.1 + 5f64;
+        let x = (pos.0 / constants::X_SPAN) * screen_size.0;
+        let y = (pos.1 / constants::Y_SPAN) * screen_size.1;
 
-        (x, y)
+        (x + 2f64, y + 2f64)
     }
 
     /// Converts a position on the screen to a position in the simulation
