@@ -12,7 +12,7 @@ use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
 #[allow(unused_imports)]
-use piston::input::{RenderEvent, UpdateEvent, RenderArgs, UpdateArgs};
+use piston::input::{RenderEvent, UpdateEvent, RenderArgs, UpdateArgs, MouseCursorEvent};
 use piston::window::WindowSettings;
 
 use app::App;
@@ -34,6 +34,7 @@ fn main() {
     let mut app = App::new(opengl);
 
     let mut events = Events::new(EventSettings::new());
+
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);
@@ -41,6 +42,10 @@ fn main() {
 
         if let Some(args) = e.update_args() {
             app.update(&args);
+        }
+
+        if let Some(args) = e.mouse_cursor_args() {
+            app.mouse_cursor(&args);
         }
     }
 }

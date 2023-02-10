@@ -5,7 +5,7 @@ use opengl_graphics::{GlGraphics, OpenGL};
 #[allow(unused_imports)]
 use piston::event_loop::{EventSettings, Events};
 #[allow(unused_imports)]
-use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent, MouseCursorEvent};
 #[allow(unused_imports)]
 use piston::window::WindowSettings;
 
@@ -20,6 +20,8 @@ const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 pub struct App {
     pub gl: GlGraphics, // OpenGL drawing backend
     particles: particle_system::Particles,
+
+    last_mouse_pos: (f64, f64),
 }
 
 impl App {
@@ -32,20 +34,17 @@ impl App {
         );
         particles.init();
 
-        // print pos with pos and colour
-        for i in 0..particles.num_particles {
-            println!(
-                "pos: ({}, {}), colour: {}",
-                particles.particles[[i, 0]],
-                particles.particles[[i, 1]],
-                particles.particles[[i, 4]]
-            );
-        }
-
         App {
             gl: GlGraphics::new(opengl),
             particles,
+            last_mouse_pos: (0f64, 0f64),
         }
+    }
+
+    /// Mouse cursor event
+    pub fn mouse_cursor(&mut self, args: &[f64; 2]) {
+        // update
+        self.last_mouse_pos = (args[0], args[1]);
     }
 
     /// Renders a frame
@@ -59,6 +58,46 @@ impl App {
             let window_width = args.window_size[0];
             let window_height = args.window_size[1];
 
+            // draw currently selected grid
+            // screen -> sim -> grid -> sim -> screen
+            
+            // screen -> sim
+            let mouse_sim_pos = App::screen_pos_to_sim_pos(
+                self.last_mouse_pos, 
+                (window_width, window_height)
+            );
+
+            // sim -> grid
+            let mouse_grid_pos = self.particles.grid.sim_pos_to_grid_pos(mouse_sim_pos);
+
+            // grid -> sim
+            let mouse_sim_pos = self.particles.grid.grid_pos_to_sim_pos(mouse_grid_pos);
+
+            // sim -> screen
+            let mouse_screen_pos = App::sim_pos_to_screen_pos(mouse_sim_pos, (window_width, window_height));
+
+            let size = App::sim_pos_to_screen_pos(
+                (
+                    constants::GRID_CELL_SIZE as f64,
+                    constants::GRID_CELL_SIZE as f64,
+                ),
+                (window_width, window_height),
+            );
+
+            rectangle(
+                [1.0, 1.0, 1.0, 0.1],
+                [
+                    mouse_screen_pos.0 - constants::GRID_CELL_SIZE as f64 / 2f64,
+                    mouse_screen_pos.1 - constants::GRID_CELL_SIZE as f64 / 2f64,
+                    size.0,
+                    size.1,
+                ],
+                c.transform,
+                gl,
+            );
+
+
+            // draw all particles
             for i in 0..self.particles.num_particles {
                 // convert simulation position to graphical position
                 let pos = App::sim_pos_to_screen_pos((
@@ -95,10 +134,16 @@ impl App {
 
     /// Converts a position in the simulation to a position on the screen
     fn sim_pos_to_screen_pos(pos: (f64, f64), screen_size: (f64, f64)) -> (f64, f64) {
-        let x = (pos.0 / constants::X_SPAN) * screen_size.0;
-        let y = (pos.1 / constants::Y_SPAN) * screen_size.1;
+        let x = (pos.0 / constants::X_SPAN) * screen_size.0 + 5f64;
+        let y = (pos.1 / constants::Y_SPAN) * screen_size.1 + 5f64;
 
-        
+        (x, y)
+    }
+
+    /// Converts a position on the screen to a position in the simulation
+    fn screen_pos_to_sim_pos(pos: (f64, f64), screen_size: (f64, f64)) -> (f64, f64) {
+        let x = (pos.0 / screen_size.0) * constants::X_SPAN;
+        let y = (pos.1 / screen_size.1) * constants::Y_SPAN;
 
         (x, y)
     }

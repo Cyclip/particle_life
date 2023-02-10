@@ -147,7 +147,7 @@ impl Grid {
 
         for i in pos.0 - 1..pos.0 + 2 {
             for j in pos.1 - 1..pos.1 + 2 {
-                if i >= 0 && i < self.num_cells.0 && j >= 0 && j < self.num_cells.1 {
+                if i < self.num_cells.0 && j >= 0 && j < self.num_cells.1 {
                     particles.append(&mut self.get_particles((i, j)).clone());
                 }
             }
