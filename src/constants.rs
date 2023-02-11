@@ -2,7 +2,7 @@
 
 // ================== Simulation ==================
 /// Number of particles in the simulation
-pub const NUM_PARTICLES: usize = 2;
+pub const NUM_PARTICLES: usize = 20;
 /// x-span of the simulation
 pub const X_SPAN: f64 = 100.0;
 /// y-span of the simulation
@@ -10,7 +10,7 @@ pub const Y_SPAN: f64 = 100.0;
 /// Resistance multiplier (friction)
 pub const RESISTANCE: f64 = 0.9;
 /// Force multiplier
-pub const FORCE: f64 = 0.1;
+pub const FORCE: f64 = 10f64;
 /// Number of colours
 pub const NUM_COLOURS: usize = 3;
 /// Spatial partitioning grid size (must be a divisor of X_SPAN and Y_SPAN)
@@ -32,6 +32,8 @@ pub const COLOURS: [[f32; 4]; 12] = [
 ];
 /// Particle size
 pub const PARTICLE_SIZE: f64 = 4.0;
+/// Maximum distance between particles before forced repulsion
+pub const DISTANCE_THRESHOLD: f64 = 10.0;
 // ================== Simulation ==================
 
 

@@ -1,5 +1,7 @@
 //! Manages the behaviour of particles based on their colour
 
+use crate::constants;
+
 use ndarray::Array2;
 
 /// Represents all the behaviours of particles
@@ -23,6 +25,9 @@ impl Behaviour {
                 self.behaviours[[i, j]] = rand::random::<f64>() * 2.0 - 1.0;
             }
         }
+
+        // pretty print
+        println!("{:#?}", self.behaviours);
     }
 
     /// Get the behaviour of a particle with colour `colour` towards a particle with colour `target_colour`
@@ -44,5 +49,20 @@ impl Behaviour {
         }
 
         behaviours
+    }
+
+    /// Get the new velocity of a particle with colour `colour` towards a particle with colour `target_colour`
+    pub fn get_new_velocity(
+        &self,
+        behaviour: f64,
+        velocity: (f64, f64),
+    ) -> (f64, f64) {
+
+        let new_velocity = (
+            velocity.0 + behaviour,
+            velocity.1 + behaviour,
+        );
+
+        new_velocity
     }
 }
