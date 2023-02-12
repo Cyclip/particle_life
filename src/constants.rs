@@ -2,19 +2,19 @@
 
 // ================== Simulation ==================
 /// Number of particles in the simulation
-pub const NUM_PARTICLES: usize = 20;
+pub const NUM_PARTICLES: usize = 5;
 /// x-span of the simulation
-pub const X_SPAN: f64 = 100.0;
+pub const X_SPAN: f64 = 10.0;
 /// y-span of the simulation
-pub const Y_SPAN: f64 = 100.0;
+pub const Y_SPAN: f64 = 10.0;
 /// Resistance multiplier (friction)
 pub const RESISTANCE: f64 = 0.9;
 /// Force multiplier
-pub const FORCE: f64 = 10f64;
+pub const FORCE: f64 = 0.01f64;
 /// Number of colours
 pub const NUM_COLOURS: usize = 3;
 /// Spatial partitioning grid size (must be a divisor of X_SPAN and Y_SPAN)
-pub const GRID_CELL_SIZE: usize = 25;
+pub const GRID_CELL_SIZE: usize = 5;
 /// All available colours
 pub const COLOURS: [[f32; 4]; 12] = [
     [1.0, 0.0, 0.0, 1.0], // red

@@ -3,7 +3,7 @@
 use crate::constants;
 use crate::app::particle_behaviour;
 
-use ndarray::Array2;
+use ndarray::{Array2, s};
 use std::collections::HashMap;
 
 /// Stores all particles within an array.
@@ -141,6 +141,13 @@ impl Particles {
 
             // print grid
             self.grid.print();
+
+            // print particle positions
+            for i in 0..self.num_particles {
+                println!("Particle {}: {}", i, self.particles.slice(s![i, 0..2]));
+            }
+
+            println!();
         }
     }
 
@@ -151,13 +158,17 @@ impl Particles {
         cell_pos: &(usize, usize),
     ) {
         // get particles in cell
-        let particles = self.grid.get_neighbour_particles(cell_pos);
+        // let particles = self.grid.get_neighbour_particles(cell_pos);
+        // WARNING: *NOT* using neighbour particles
+        let particles = self.grid.cells.get(cell_pos).expect("Cell not found").clone();
 
         println!("Cell {:?}: {:?}", cell_pos, particles);
 
         // O(n^2) algorithm
         // for each particle in cell
-        for i in 0..particles.len() {
+        for inner_particle_index in 0..particles.len() {
+            let i = particles[inner_particle_index];
+            
             // get this particle's pos, vel, colour
             let mut pos = (
                 self.particles[[i, 0]],
@@ -171,6 +182,8 @@ impl Particles {
 
             // current grid position incase it moves later
             let grid_pos = Grid::sim_pos_to_grid_pos(pos);
+            
+            println!("Particle {} starts at: {:?}\t[{:?}]", i, grid_pos, pos);
 
             let colour = self.particles[[i, 4]] as usize;
 
@@ -192,7 +205,7 @@ impl Particles {
                     // if particles are close enough
                     let force = if dist < constants::DISTANCE_THRESHOLD {
                         // get force between particles
-                        self.behaviour.get_behaviour(colour, other_colour) * constants::FORCE / dist
+                        self.behaviour.get_behaviour(colour, other_colour) * constants::FORCE
                     } else {
                         // forced repulsion
                         -1f64 * constants::FORCE / dist
@@ -208,6 +221,9 @@ impl Particles {
             pos.0 += vel.0;
             pos.1 += vel.1;
 
+            // wrap around edges
+            pos = self.wrap(pos);
+
             // update it in the actual particle array
             self.particles[[i, 0]] = pos.0;
             self.particles[[i, 1]] = pos.1;
@@ -215,25 +231,31 @@ impl Particles {
             self.particles[[i, 2]] = vel.0;
             self.particles[[i, 3]] = vel.1;
 
-            // wrap around edges
-            if pos.0 < 0f64 {
-                pos.0 += self.sim_area.0;
-            } else if pos.0 > self.sim_area.0 {
-                pos.0 -= self.sim_area.0;
-            }
-
-            if pos.1 < 0f64 {
-                pos.1 += self.sim_area.1;
-            } else if pos.1 > self.sim_area.1 {
-                pos.1 -= self.sim_area.1;
-            }
-
             // if particle has moved cells
-            let new_pos = Grid::sim_pos_to_grid_pos(pos);
+            let new_pos = Grid::sim_pos_to_grid_pos(
+                (pos.0, pos.1)
+            );
+
+            println!("Particle {} ends at: {:?}\t[{:?}]", i, new_pos, pos);
+
             if new_pos != grid_pos {
                 self.grid.move_particle(grid_pos, new_pos, i);
             }
         }
+    }
+
+    fn wrap(&self, pos: (f64, f64)) -> (f64, f64) {
+        let mut new_pos = pos;
+
+        if new_pos.0 < 0f64 || new_pos.0 > self.sim_area.0 {
+            new_pos.0 = new_pos.0 % self.sim_area.0;
+        }
+
+        if new_pos.1 < 0f64 || new_pos.1 > self.sim_area.1 {
+            new_pos.1 = new_pos.1 % self.sim_area.1;
+        }
+
+        new_pos
     }
 }
 
@@ -281,6 +303,9 @@ impl Grid {
         // if not already in cell
         if !self.get_cell(pos).contains(&particle) {
             self.get_cell_mut(pos).push(particle);
+            println!("[++] Added particle {} to cell {:?}", particle, pos);
+        } else {
+            println!("[+/] Particle {} already in cell {:?}", particle, pos);
         }
     }
 
@@ -290,17 +315,21 @@ impl Grid {
 
         let index = match cell.iter().position(|&x| x == particle) {
             Some(index) => index,
-            None => panic!("Particle {} not found in cell: {:?}", particle, pos),
+            None => panic!("[-/] Particle {} not found in cell: {:?}", particle, pos),
         };
 
         cell.remove(index);
+        println!("[--] Removed particle {} from cell {:?}", particle, pos);
     }
 
     /// Moves a particle from one cell to another
     pub fn move_particle(&mut self, old_pos: (usize, usize), new_pos: (usize, usize), particle: usize) {
-        println!("Moving particle {} from {:?} to {:?}", particle, old_pos, new_pos);
+        println!("[->] Moving particle {} from {:?} to {:?}", particle, old_pos, new_pos);
         self.remove_particle(old_pos, particle);
         self.add_particle(new_pos, particle);
+
+        // print particles new pos
+        println!("Cell {:?}: {:?}", new_pos, self.get_cell(new_pos));
     }
 
     /// Returns a reference to a grid cell

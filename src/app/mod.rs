@@ -87,7 +87,7 @@ impl App {
             );
 
             rectangle(
-                [1.0, 1.0, 1.0, 0.1],
+                [1.0, 1.0, 1.0, 0.01],
                 [
                     mouse_screen_pos.0 - constants::GRID_CELL_SIZE as f64 / 2f64,
                     mouse_screen_pos.1 - constants::GRID_CELL_SIZE as f64 / 2f64,
