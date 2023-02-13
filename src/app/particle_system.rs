@@ -130,24 +130,10 @@ impl Particles {
         // update every cell
         let cell_positions = self.grid.get_cell_positions();
 
-        self.grid.print();
-        
         for cell_pos in cell_positions.iter() {
-            println!("Updating cell {:?}", cell_pos);
-
             self.update_cell(
                 cell_pos,
             );
-
-            // print grid
-            self.grid.print();
-
-            // print particle positions
-            for i in 0..self.num_particles {
-                println!("Particle {}: {}", i, self.particles.slice(s![i, 0..2]));
-            }
-
-            println!();
         }
     }
 
@@ -158,16 +144,12 @@ impl Particles {
         cell_pos: &(usize, usize),
     ) {
         // get particles in cell
-        // let particles = self.grid.get_neighbour_particles(cell_pos);
-        // WARNING: *NOT* using neighbour particles
-        let particles = self.grid.cells.get(cell_pos).expect("Cell not found").clone();
-
-        println!("Cell {:?}: {:?}", cell_pos, particles);
+        let particles = self.grid.get_neighbour_particles(cell_pos);
 
         // O(n^2) algorithm
         // for each particle in cell
-        for inner_particle_index in 0..particles.len() {
-            let i = particles[inner_particle_index];
+        for inner_particle_index_i in 0..particles.len() {
+            let i = particles[inner_particle_index_i];
             
             // get this particle's pos, vel, colour
             let mut pos = (
@@ -182,13 +164,13 @@ impl Particles {
 
             // current grid position incase it moves later
             let grid_pos = Grid::sim_pos_to_grid_pos(pos);
-            
-            println!("Particle {} starts at: {:?}\t[{:?}]", i, grid_pos, pos);
 
             let colour = self.particles[[i, 4]] as usize;
 
             // for each particle in cell
-            for j in 0..particles.len() {
+            for inner_particle_index_j in 0..particles.len() {
+                let j = particles[inner_particle_index_j];
+                
                 // if not the same particle
                 if i != j {
                     // get this particles pos and colour
@@ -202,13 +184,13 @@ impl Particles {
                     // get distance between particles
                     let dist = Grid::dist(pos, other_pos);
 
-                    // if particles are close enough
-                    let force = if dist < constants::DISTANCE_THRESHOLD {
+                    // if particles arent close enough
+                    let force = if dist > constants::DISTANCE_THRESHOLD {
                         // get force between particles
                         self.behaviour.get_behaviour(colour, other_colour) * constants::FORCE
                     } else {
                         // forced repulsion
-                        -1f64 * constants::FORCE / dist
+                        -1f64 * constants::FORCE
                     };
 
                     // apply force to velocity
@@ -236,8 +218,6 @@ impl Particles {
                 (pos.0, pos.1)
             );
 
-            println!("Particle {} ends at: {:?}\t[{:?}]", i, new_pos, pos);
-
             if new_pos != grid_pos {
                 self.grid.move_particle(grid_pos, new_pos, i);
             }
@@ -245,17 +225,24 @@ impl Particles {
     }
 
     fn wrap(&self, pos: (f64, f64)) -> (f64, f64) {
-        let mut new_pos = pos;
+        // use modulo to wrap around edges
+        let x = pos.0 % self.sim_area.0;
+        let y = pos.1 % self.sim_area.1;
 
-        if new_pos.0 < 0f64 || new_pos.0 > self.sim_area.0 {
-            new_pos.0 = new_pos.0 % self.sim_area.0;
-        }
+        // if negative, add sim area to wrap around
+        let x = if x < 0f64 {
+            x + self.sim_area.0
+        } else {
+            x
+        };
 
-        if new_pos.1 < 0f64 || new_pos.1 > self.sim_area.1 {
-            new_pos.1 = new_pos.1 % self.sim_area.1;
-        }
+        let y = if y < 0f64 {
+            y + self.sim_area.1
+        } else {
+            y
+        };
 
-        new_pos
+        (x, y)
     }
 }
 
@@ -303,9 +290,6 @@ impl Grid {
         // if not already in cell
         if !self.get_cell(pos).contains(&particle) {
             self.get_cell_mut(pos).push(particle);
-            println!("[++] Added particle {} to cell {:?}", particle, pos);
-        } else {
-            println!("[+/] Particle {} already in cell {:?}", particle, pos);
         }
     }
 
@@ -315,21 +299,18 @@ impl Grid {
 
         let index = match cell.iter().position(|&x| x == particle) {
             Some(index) => index,
-            None => panic!("[-/] Particle {} not found in cell: {:?}", particle, pos),
+            None => panic!("Particle not found in cell: {:?}", pos),
         };
 
         cell.remove(index);
-        println!("[--] Removed particle {} from cell {:?}", particle, pos);
     }
 
     /// Moves a particle from one cell to another
     pub fn move_particle(&mut self, old_pos: (usize, usize), new_pos: (usize, usize), particle: usize) {
-        println!("[->] Moving particle {} from {:?} to {:?}", particle, old_pos, new_pos);
         self.remove_particle(old_pos, particle);
         self.add_particle(new_pos, particle);
 
         // print particles new pos
-        println!("Cell {:?}: {:?}", new_pos, self.get_cell(new_pos));
     }
 
     /// Returns a reference to a grid cell
@@ -352,10 +333,10 @@ impl Grid {
     pub fn get_neighbour_particles(&self, pos: &(usize, usize)) -> Vec<usize> {
         let mut particles = Vec::new();
 
-        // get cell and neighbours
-        let cells = self.get_neighbour_cells_pos(pos);
+        // get all cells around the given cell
+        let cells = self.get_neighbour_cells(pos);
 
-        // add particles
+        // get all particles in those cells
         for cell in cells {
             particles.append(&mut self.get_cell(cell).clone());
         }
@@ -363,35 +344,38 @@ impl Grid {
         particles
     }
 
-    /// Get the positions of a cell and its neighbours (including itself)
-    fn get_neighbour_cells_pos(&self, pos: &(usize, usize)) -> Vec<(usize, usize)> {
+    /// Get all cells around, and including, a given cell
+    /// Takes care of wrapping around the edges
+    pub fn get_neighbour_cells(&self, pos: &(usize, usize)) -> Vec<(usize, usize)> {
+        // usize cannot be negative, so we use isize
         let mut cells = Vec::new();
 
-        // get cell and neighbours
-        let x = pos.0;
-        let y = pos.1;
+        let x = pos.0 as isize;
+        let y = pos.1 as isize;
 
-        // prepare edges
-        let x_span = self.num_cells.0 - 1;
-        let y_span = self.num_cells.1 - 1;
+        let x_max = self.num_cells.0 as isize;
+        let y_max = self.num_cells.1 as isize;
 
-        // add cells
+        // get all cells around the given cell
         for i in -1..2 {
             for j in -1..2 {
-                // wrap around edges
-                let x2 = (
-                    x as i32 + i + x_span as i32
-                ) as usize % x_span;
+                let new_x = (x + i) % x_max;
+                let new_y = (y + j) % y_max;
 
-                let y2 = (
-                    y as i32 + j + y_span as i32
-                ) as usize % y_span;
+                // wrap around
+                let new_x = if new_x < 0 { new_x + x_max } else { new_x };
+                let new_y = if new_y < 0 { new_y + y_max } else { new_y };
 
-                cells.push((x2, y2));
+                cells.push((new_x as usize, new_y as usize));
             }
         }
 
         cells
+    }
+
+    /// Get particle indexes of all particles in a cell only
+    pub fn get_cell_particles(&self, pos: &(usize, usize)) -> Vec<usize> {
+        self.get_cell(*pos).clone()
     }
 
     /// Returns grid cell index of a given simulation position
